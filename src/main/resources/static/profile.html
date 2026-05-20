@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Профіль</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Особистий кабінет</h2>
+<p>Ви авторизовані як користувач: <strong id="username-display"></strong></p>
+<p>Доступні ролі в системі: <strong id="roles-display"></strong></p>
+
+<fieldset style="max-width: 400px;">
+    <legend>Зміна особистого пароля</legend>
+    <form id="password-form">
+        <input type="password" id="old-pass" placeholder="Поточний пароль" required>
+        <input type="password" id="new-pass" placeholder="Новий пароль" required>
+        <button type="submit">Зберегти новий пароль</button>
+        <div id="pass-msg" class="msg"></div>
+    </form>
+</fieldset>
+
+<script src="common.js"></script>
+<script>
+    checkAuth();
+    renderNav();
+
+    document.getElementById('username-display').textContent = userPayload.sub;
+    document.getElementById('roles-display').textContent = userRoles.join(', ');
+
+    document.getElementById('password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('pass-msg');
+        try {
+            await apiFetch('/auth/password', 'PUT', {
+                oldPassword: document.getElementById('old-pass').value,
+                newPassword: document.getElementById('new-pass').value
+            });
+            msg.style.color = 'green'; msg.textContent = 'Пароль успішно змінено';
+            e.target.reset();
+        } catch (err) {
+            msg.style.color = 'red'; msg.textContent = err.message;
+        }
+    });
+</script>
+</body>
+</html>

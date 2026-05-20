@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Керування довідниками</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Системні довідники (Каталоги)</h2>
+
+<div class="flex-row">
+    <div>
+        <h3>Посади (job-titles)</h3>
+        <fieldset>
+            <legend>Операції</legend>
+            <input type="text" id="input-job-name" placeholder="Назва посади">
+            <input type="number" id="input-job-id" placeholder="ID для редагування (опціонально)">
+            <button onclick="saveJobTitle()">Зберегти (Додати / Оновити)</button>
+        </fieldset>
+        <table>
+            <thead><tr><th>ID</th><th>Назва посади</th></tr></thead>
+            <tbody id="jobs-tbody"></tbody>
+        </table>
+    </div>
+
+    <div>
+        <h3>Підрозділи (departments)</h3>
+        <fieldset>
+            <legend>Операції (Клікніть на рядок для редагування)</legend>
+            <input type="text" id="input-dept-name" placeholder="Назва підрозділу" required>
+            <input type="number" id="input-dept-manager" placeholder="ID Керівника (manager_id)">
+            <input type="number" id="input-dept-id" placeholder="ID для редагування (опціонально)" readonly style="background: #eee;">
+            <button onclick="saveDepartment()">Зберегти (Додати / Оновити)</button>
+            <button onclick="clearDeptForm()">Очистити форму</button>
+        </fieldset>
+        <table>
+            <thead><tr><th>ID</th><th>Назва</th><th>Керівник (ID)</th></tr></thead>
+            <tbody id="depts-tbody"></tbody>
+        </table>
+    </div>
+
+    <div>
+        <h3>Статуси доручень (assignment-statuses)</h3>
+        <fieldset>
+            <legend>Операції</legend>
+            <input type="text" id="input-status-name" placeholder="Назва статусу">
+            <input type="number" id="input-status-id" placeholder="ID для редагування (опціонально)">
+            <button onclick="saveStatus()">Зберегти (Додати / Оновити)</button>
+        </fieldset>
+        <table>
+            <thead><tr><th>ID</th><th>Назва статусу</th></tr></thead>
+            <tbody id="statuses-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+    checkAuth(); if(!userRoles.includes('ADMIN')) window.location.href = 'profile.html'; renderNav();
+
+    async function loadJobs() {
+        const data = await apiFetch('/job-titles');
+        const tbody = document.getElementById('jobs-tbody');
+        tbody.innerHTML = data.map(j => `<tr><td>${j.id}</td><td>${j.name}</td></tr>`).join('');
+    }
+    async function saveJobTitle() {
+        const id = document.getElementById('input-job-id').value;
+        const name = document.getElementById('input-job-name').value;
+        try {
+            if (id) {
+                await apiFetch(`/job-titles/${id}`, 'PUT', { name });
+            } else {
+                await apiFetch('/job-titles', 'POST', { name });
+            }
+            document.getElementById('input-job-id').value = '';
+            document.getElementById('input-job-name').value = '';
+            loadJobs();
+        } catch(err) { alert(err.message); }
+    }
+
+
+    async function loadDepts() {
+        try {
+            const data = await apiFetch('/departments');
+            const tbody = document.getElementById('depts-tbody');
+            tbody.innerHTML = data.map(d => {
+                const escapedName = d.name.replace(/'/g, "\\'");
+                return `<tr style="cursor:pointer;" onclick="selectDepartment(${d.id}, '${escapedName}', ${d.managerId || 'null'})" title="Натисніть для редагування">
+                    <td>${d.id}</td>
+                    <td>${d.name}</td>
+                    <td>${d.managerFullName || 'Немає'} (ID: ${d.managerId || 'NULL'})</td>
+                </tr>`;
+            }).join('');
+        } catch(err) { alert(err.message); }
+    }
+
+    function selectDepartment(id, name, managerId) {
+        document.getElementById('input-dept-id').value = id;
+        document.getElementById('input-dept-name').value = name;
+        document.getElementById('input-dept-manager').value = managerId !== null ? managerId : '';
+    }
+
+    function clearDeptForm() {
+        document.getElementById('input-dept-id').value = '';
+        document.getElementById('input-dept-name').value = '';
+        document.getElementById('input-dept-manager').value = '';
+    }
+
+    async function saveDepartment() {
+        const id = document.getElementById('input-dept-id').value;
+        const name = document.getElementById('input-dept-name').value;
+        const mId = document.getElementById('input-dept-manager').value;
+        const payload = { name, managerId: mId ? parseInt(mId) : null };
+        try {
+            if (id) {
+                await apiFetch(`/departments/${id}`, 'PUT', payload);
+            } else {
+                await apiFetch('/departments', 'POST', payload);
+            }
+            clearDeptForm();
+            loadDepts();
+        } catch(err) { alert(err.message); }
+    }
+
+    async function loadStatuses() {
+        const data = await apiFetch('/assignment-statuses');
+        const tbody = document.getElementById('statuses-tbody');
+        tbody.innerHTML = data.map(s => `<tr><td>${s.id}</td><td>${s.name}</td></tr>`).join('');
+    }
+    async function saveStatus() {
+        const id = document.getElementById('input-status-id').value;
+        const name = document.getElementById('input-status-name').value;
+        try {
+            if (id) {
+                await apiFetch(`/assignment-statuses/${id}`, 'PUT', { name });
+            } else {
+                await apiFetch('/assignment-statuses', 'POST', { name });
+            }
+            document.getElementById('input-status-id').value = '';
+            document.getElementById('input-status-name').value = '';
+            loadStatuses();
+        } catch(err) { alert(err.message); }
+    }
+
+    loadJobs(); loadDepts(); loadStatuses();
+</script>
+</body>
+</html>

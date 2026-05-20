@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Створення доручення</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Реєстрація нового доручення</h2>
+
+<fieldset>
+    <form id="create-assignment-form">
+        <label>Заголовок доручення:</label><input type="text" id="c-title" required>
+        <label>Зміст завдання:</label><textarea id="c-content" rows="4" required></textarea>
+
+        <div class="flex-row">
+            <div>
+                <label>Дата видачі документа:</label>
+                <input type="date" id="c-issue-date" required>
+            </div>
+            <div>
+                <label>Плановий дедлайн (due_date):</label>
+                <input type="date" id="c-due-date" required>
+            </div>
+        </div>
+
+        <label>Призначити виконавця:</label>
+        <select id="c-executor" required><option value="">Завантаження списку активних співробітників...</option></select>
+
+        <button type="submit">Видати доручення</button>
+        <div id="c-msg" class="msg"></div>
+    </form>
+</fieldset>
+
+<script src="common.js"></script>
+<script>
+    checkAuth(); renderNav();
+
+    async function loadActiveExecutors() {
+        try {
+            const employees = await apiFetch('/employees');
+            const select = document.getElementById('c-executor');
+            select.innerHTML = '<option value="">Оберіть людину...</option>';
+            employees.forEach(e => {
+                if(e.employmentStatus === 'ACTIVE') {
+                    select.innerHTML += `<option value="${e.id}">${e.lastName} ${e.firstName} [Відділ ID: ${e.departmentId}]</option>`;
+                }
+            });
+        } catch(err) { alert('Не вдалося завантажити виконавців: ' + err.message); }
+    }
+
+    document.getElementById('create-assignment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('c-msg');
+        const body = {
+            title: document.getElementById('c-title').value,
+            content: document.getElementById('c-content').value,
+            issueDate: document.getElementById('c-issue-date').value,
+            dueDate: document.getElementById('c-due-date').value,
+            executorId: parseInt(document.getElementById('c-executor').value)
+        };
+
+        try {
+            await apiFetch('/assignments', 'POST', body);
+            msg.style.color = 'green'; msg.textContent = 'Доручення успішно створено та додано до черги';
+            e.target.reset();
+            document.getElementById('c-issue-date').valueAsDate = new Date();
+        } catch(err) { msg.style.color = 'red'; msg.textContent = err.message; }
+    });
+
+    document.getElementById('c-issue-date').valueAsDate = new Date();
+    loadActiveExecutors();
+</script>
+</body>
+</html>

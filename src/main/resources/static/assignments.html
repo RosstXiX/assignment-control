@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Доручення</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Управління та перегляд доручень</h2>
+
+<fieldset>
+    <legend>Параметри пошуку, фільтрації та звітів</legend>
+    <div class="flex-row">
+        <div>
+            <label>Пошук за конкретною датою дедлайну (due_date):</label>
+            <input type="date" id="filter-date">
+        </div>
+        <div>
+            <label>Звіт за період: Дата створення З (issue_date):</label>
+            <input type="date" id="filter-from">
+        </div>
+        <div>
+            <label>Звіт за період: Дата створення ПО (issue_date):</label>
+            <input type="date" id="filter-to">
+        </div>
+    </div>
+    <button onclick="fetchAssignmentsList('/assignments')">Застосувати фільтри</button>
+    <button onclick="fetchAssignmentsList('/assignments/daily')">Показати щоденний звiт</button>
+    <button onclick="clearFilters()">Скинути всі фільтри</button>
+</fieldset>
+
+<div id="status-statistics" style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border: 1px solid #ccc; display: none;"></div>
+
+<table>
+    <thead>
+    <tr><th>№</th><th>Заголовок</th><th>Виконавець</th><th>Статус</th><th>Плановий Дедлайн</th><th>Управління</th></tr>
+    </thead>
+    <tbody id="assignments-tbody"></tbody>
+</table>
+
+<script src="common.js"></script>
+<script>
+    checkAuth(); renderNav();
+
+    async function fetchAssignmentsList(endpoint) {
+        let url = endpoint;
+        if (endpoint === '/assignments') {
+            const params = new URLSearchParams();
+            const d = document.getElementById('filter-date').value;
+            const f = document.getElementById('filter-from').value;
+            const t = document.getElementById('filter-to').value;
+            if(d) params.append('date', d);
+            if(f) params.append('from', f);
+            if(t) params.append('to', t);
+            const queryStr = params.toString();
+            if(queryStr) url += `?${queryStr}`;
+        }
+
+        try {
+            const data = await apiFetch(url);
+            const tbody = document.getElementById('assignments-tbody');
+            const statsDiv = document.getElementById('status-statistics');
+
+            tbody.innerHTML = data.length ? '' : '<tr><td colspan="6">Доручень не знайдено за даними критеріями</td></tr>';
+
+            if (data.length > 0) {
+                const statusCounts = {};
+                data.forEach(a => {
+                    statusCounts[a.statusName] = (statusCounts[a.statusName] || 0) + 1;
+                });
+
+                let statsHtml = '<strong>Статистика за статусами:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+                for (const [status, count] of Object.entries(statusCounts)) {
+                    statsHtml += `<li>${status}: <strong>${count}</strong></li>`;
+                }
+                statsHtml += `</ul><div>Загальна кількість: <strong>${data.length}</strong></div>`;
+
+                statsDiv.innerHTML = statsHtml;
+                statsDiv.style.display = 'block';
+            } else {
+                statsDiv.style.display = 'none';
+                statsDiv.innerHTML = '';
+            }
+
+            data.forEach(a => {
+                tbody.innerHTML += `<tr>
+                        <td>${a.serialNumber}</td>
+                        <td>${a.title}</td>
+                        <td>${a.executorFullName}</td>
+                        <td>${a.statusName}</td>
+                        <td>${a.dueDate}</td>
+                        <td><button onclick="location.href='assignment-details.html?id=${a.id}'">Деталі / Редагувати</button></td>
+                    </tr>`;
+            });
+        } catch(err) {
+            alert(err.message);
+        }
+    }
+
+    function clearFilters() {
+        document.getElementById('filter-date').value = '';
+        document.getElementById('filter-from').value = '';
+        document.getElementById('filter-to').value = '';
+        fetchAssignmentsList('/assignments');
+    }
+
+    fetchAssignmentsList('/assignments');
+</script>
+</body>
+</html>

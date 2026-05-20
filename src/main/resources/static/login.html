@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Авторизація</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h2 style="text-align: center">Вхід до системи</h2>
+<fieldset style="max-width:400px; margin: 40px auto;">
+    <form id="login-form">
+        <label>Логін:</label><input type="text" id="login-username" required>
+        <label>Пароль:</label><input type="password" id="login-password" required>
+        <button type="submit">Увійти</button>
+        <div id="login-error" class="msg" style="color:red"></div>
+    </form>
+</fieldset>
+
+<script src="common.js"></script>
+<script>
+    if(token && userPayload) window.location.href = 'profile.html';
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const res = await apiFetch('/auth/login', 'POST', {
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value
+            });
+            localStorage.setItem('jwt', res.accessToken);
+            window.location.href = 'profile.html';
+        } catch (err) {
+            document.getElementById('login-error').textContent = err.message;
+        }
+    });
+</script>
+</body>
+</html>

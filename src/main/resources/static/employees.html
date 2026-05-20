@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Співробітники</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Управління персоналом</h2>
+
+<fieldset id="block-create-emp" class="hidden">
+    <legend>Реєстрація картки співробітника та акаунта</legend>
+    <form id="create-emp-form">
+        <div class="flex-row">
+            <input type="text" id="emp-lastname" placeholder="Прізвище" required>
+            <input type="text" id="emp-firstname" placeholder="Ім'я" required>
+            <input type="text" id="emp-middlename" placeholder="По батькові">
+        </div>
+        <div class="flex-row">
+            <input type="number" id="emp-dept" placeholder="ID Відділу" required>
+            <input type="number" id="emp-job" placeholder="ID Посади" required>
+            <input type="text" id="emp-username" placeholder="Унікальний Логін (Username)" required>
+        </div>
+        <label>Роль користувача:</label>
+        <select id="emp-role" required>
+            <option value="ROLE_EMPLOYEE">EMPLOYEE</option>
+            <option value="ROLE_MANAGER">MANAGER</option>
+            <option value="ROLE_ADMIN">ADMIN</option>
+        </select>
+        <button type="submit">Створити та згенерувати пароль</button>
+    </form>
+</fieldset>
+
+<fieldset id="block-edit-emp" class="hidden" style="background:#f9f9f9;">
+    <legend>Редагування співробітника ID: <span id="edit-emp-id-title"></span></legend>
+    <form id="edit-emp-form">
+        <div class="flex-row">
+            <input type="text" id="edit-emp-lastname" required>
+            <input type="text" id="edit-emp-firstname" required>
+            <input type="text" id="edit-emp-middlename">
+        </div>
+        <div class="flex-row">
+            <input type="number" id="edit-emp-dept" required>
+            <input type="number" id="edit-emp-job" required>
+        </div>
+        <button type="submit">Зберегти зміни персоналу</button>
+        <button type="button" onclick="document.getElementById('block-edit-emp').classList.add('hidden')">Скасувати</button>
+    </form>
+</fieldset>
+
+<table>
+    <thead>
+    <tr><th>ID</th><th>ПІБ</th><th>Відділ (ID)</th><th>Посада (ID)</th><th>Роль</th><th>Статус</th><th>Дії</th></tr>
+    </thead>
+    <tbody id="employees-tbody"></tbody>
+</table>
+
+<script src="common.js"></script>
+<script>
+    checkAuth(); renderNav();
+    const isAdmin = userRoles.includes('ADMIN');
+    if(userRoles.includes('MANAGER') || isAdmin) document.getElementById('block-create-emp').classList.remove('hidden');
+
+    async function loadEmployeesList() {
+        try {
+            const data = await apiFetch('/employees');
+            const tbody = document.getElementById('employees-tbody');
+            tbody.innerHTML = '';
+            data.forEach(e => {
+                let actions = '---';
+                if (isAdmin) {
+                    actions = `<button onclick="openEditEmployee(${e.id}, '${e.firstName}', '${e.lastName}', '${e.middleName || ''}', ${e.departmentId}, ${e.jobTitleId})">Редагувати</button>`;
+                    if (e.employmentStatus !== 'FIRED') {
+                        actions += `<button style="color:red" onclick="fireEmployee(${e.id})">Звільнити</button>`;
+                    }
+                }
+                tbody.innerHTML += `<tr>
+                        <td>${e.id}</td>
+                        <td>${e.lastName} ${e.firstName} ${e.middleName || ''}</td>
+                        <td>${e.departmentName} (ID: ${e.departmentId})</td>
+                        <td>${e.jobTitleName} (ID: ${e.jobTitleId})</td>
+                        <td><strong style="color:#0056b3">${e.role ? e.role.replace('ROLE_', '') : '---'}</strong></td>
+                        <td><strong>${e.employmentStatus}</strong></td>
+                        <td>${actions}</td>
+                    </tr>`;
+            });
+        } catch(err) { alert(err.message); }
+    }
+
+    document.getElementById('create-emp-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const res = await apiFetch('/employees', 'POST', {
+                firstName: document.getElementById('emp-firstname').value,
+                lastName: document.getElementById('emp-lastname').value,
+                middleName: document.getElementById('emp-middlename').value || null,
+                departmentId: parseInt(document.getElementById('emp-dept').value),
+                jobTitleId: parseInt(document.getElementById('emp-job').value),
+                username: document.getElementById('emp-username').value,
+                role: document.getElementById('emp-role').value
+            });
+            alert(`Співробітника створено успішно!\nЛогін: ${res.username}\nТимчасовий пароль (показується ОДИН РАЗ): ${res.password}`);
+            e.target.reset(); loadEmployeesList();
+        } catch(err) { alert(err.message); }
+    });
+
+    let currentEditEmpId = null;
+    function openEditEmployee(id, fn, ln, mn, deptId, jobId) {
+        currentEditEmpId = id;
+        document.getElementById('edit-emp-id-title').textContent = id;
+        document.getElementById('edit-emp-firstname').value = fn;
+        document.getElementById('edit-emp-lastname').value = ln;
+        document.getElementById('edit-emp-middlename').value = mn;
+        document.getElementById('edit-emp-dept').value = deptId;
+        document.getElementById('edit-emp-job').value = jobId;
+        document.getElementById('block-edit-emp').classList.remove('hidden');
+        window.scrollTo(0,0);
+    }
+
+    document.getElementById('edit-emp-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await apiFetch(`/employees/${currentEditEmpId}`, 'PUT', {
+                firstName: document.getElementById('edit-emp-firstname').value,
+                lastName: document.getElementById('edit-emp-lastname').value,
+                middleName: document.getElementById('edit-emp-middlename').value || null,
+                departmentId: parseInt(document.getElementById('edit-emp-dept').value),
+                jobTitleId: parseInt(document.getElementById('edit-emp-job').value)
+            });
+            document.getElementById('block-edit-emp').classList.add('hidden');
+            loadEmployeesList();
+        } catch(err) { alert(err.message); }
+    });
+
+    async function fireEmployee(id) {
+        if(!confirm('Звільнити співробітника та заблокувати доступ до системи?')) return;
+        try {
+            await apiFetch(`/employees/${id}/fire`, 'PATCH');
+            loadEmployeesList();
+        } catch(err) { alert(err.message); }
+    }
+
+    loadEmployeesList();
+</script>
+</body>
+</html>

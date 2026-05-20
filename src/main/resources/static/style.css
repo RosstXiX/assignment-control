@@ -1,0 +1,13 @@
+body { font-family: sans-serif; max-width: 900px; margin: 20px auto; line-height: 1.5; padding: 0 10px; }
+.hidden { display: none !important; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+th { background: #eee; }
+fieldset { margin-bottom: 15px; padding: 10px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; }
+input, select, textarea { width: 100%; margin-bottom: 10px; box-sizing: border-box; display: block; padding: 6px; }
+nav { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #000; display: flex; gap: 10px; flex-wrap: wrap; }
+button { margin-right: 5px; margin-bottom: 5px; cursor: pointer; padding: 4px 8px; }
+.msg { margin-top: 10px; font-weight: bold; }
+.flex-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.flex-row > div { flex: 1; min-width: 200px; }

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"><title>Деталі доручення</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="main-nav"></nav>
+<h2>Картка доручення #<span id="serial-title"></span></h2>
+
+<fieldset>
+    <legend>Редагування реквізитів запису</legend>
+    <form id="edit-assignment-form">
+        <label>Заголовок доручення:</label>
+        <input type="text" id="edit-title" required>
+
+        <label>Текст / Опис змісту доручення:</label>
+        <textarea id="edit-content" rows="5" required></textarea>
+
+        <div class="flex-row">
+            <div>
+                <label>Плановий дедлайн (due_date):</label>
+                <input type="date" id="edit-due-date" required>
+            </div>
+            <div>
+                <label>Виконавець (ID Співробітника):</label>
+                <input type="number" id="edit-executor-id" required>
+            </div>
+        </div>
+
+        <div class="flex-row" style="background: #fff8f8; padding: 10px; margin-top: 10px; border: 1px dashed #000;">
+            <div>
+                <label>Поточний ID Статусу (з довідника):</label>
+                <input type="number" id="edit-status-id" required>
+            </div>
+            <div>
+                <label>Фактична дата завершення (actual_completion_date):</label>
+                <input type="date" id="edit-actual-date">
+            </div>
+        </div>
+
+        <p style="font-size:0.9em; color:#555;">
+            Постановник: <span id="info-issuer"></span> | Дата видачі документу: <span id="info-issue-date"></span>
+        </p>
+
+        <button type="submit">Зберегти внесені зміни</button>
+        <button type="button" onclick="location.href='assignments.html'">Скасувати</button>
+        <div id="edit-msg" class="msg"></div>
+    </form>
+</fieldset>
+
+<script src="common.js"></script>
+<script>
+    checkAuth(); renderNav();
+    const assignmentId = new URLSearchParams(window.location.search).get('id');
+    const isManagerOrAdmin = userRoles.includes('MANAGER') || userRoles.includes('ADMIN');
+
+    async function loadDetails() {
+        try {
+            const a = await apiFetch(`/assignments/${assignmentId}`);
+            document.getElementById('serial-title').textContent = a.serialNumber;
+            document.getElementById('edit-title').value = a.title;
+            document.getElementById('edit-content').value = a.content;
+            document.getElementById('edit-due-date').value = a.dueDate;
+            document.getElementById('edit-executor-id').value = a.executorId;
+            document.getElementById('edit-status-id').value = a.statusId;
+            document.getElementById('edit-actual-date').value = a.actualCompletionDate || '';
+            document.getElementById('info-issuer').textContent = a.issuerFullName;
+            document.getElementById('info-issue-date').textContent = a.issueDate;
+
+            if (!isManagerOrAdmin) {
+                document.getElementById('edit-title').disabled = true;
+                document.getElementById('edit-content').disabled = true;
+                document.getElementById('edit-due-date').disabled = true;
+                document.getElementById('edit-executor-id').disabled = true;
+            }
+        } catch(err) { alert(err.message); }
+    }
+
+    document.getElementById('edit-assignment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('edit-msg');
+
+        const payload = {
+            statusId: parseInt(document.getElementById('edit-status-id').value),
+            actualCompletionDate: document.getElementById('edit-actual-date').value || null
+        };
+
+        if (isManagerOrAdmin) {
+            payload.title = document.getElementById('edit-title').value;
+            payload.content = document.getElementById('edit-content').value;
+            payload.dueDate = document.getElementById('edit-due-date').value;
+            payload.executorId = parseInt(document.getElementById('edit-executor-id').value);
+        }
+
+        try {
+            await apiFetch(`/assignments/${assignmentId}`, 'PUT', payload);
+            msg.style.color = 'green'; msg.textContent = 'Дані успішно оновлено';
+            setTimeout(loadDetails, 1000);
+        } catch(err) { msg.style.color = 'red'; msg.textContent = err.message; }
+    });
+
+    if(assignmentId) loadDetails();
+</script>
+</body>
+</html>
